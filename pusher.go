@@ -1,27 +1,57 @@
 package main
 
 
-import "fmt"
-import "../../../usr/lib/go/src/pkg/github.com/kr/beanstalk"
-import "time"
-
+import (
+	beanstalk "github.com/iwanbk/gobeanstalk"
+	"log"
+	"encoding/json"
+)
 
 type DataRow struct {
-	x float64
-	y float64
+	X float64
+	Y float64
+	Xi float64
+	Yi float64
+}
+
+type Dataset struct {
+	Spearman float64
+	Significance float64
+	N int
+	Data []DataRow
 }
 
 func main() {
-
-	c, err := beanstalk.Dial("tcp", "127.0.0.1:11300")
-	var tube = beanstalk.Tube{c, "unsorted"}
-	id, err := tube.Put([]byte{DataRow{4,0},
-		DataRow{2,0},
-		DataRow{3,0},
-		DataRow{6,0},DataRow{1,0},DataRow{5,0}}, 1, 0, 120*time.Second)
-	fmt.Println("Id ", id)
-
+	// Connect to beanstalk
+	beanstalkConn, err := beanstalk.Dial("127.0.0.1:11300")
 	if err != nil {
-		fmt.Println(err)
+		log.Fatal(err)
+	}
+
+	// Pick a tube 
+	err = beanstalkConn.Use("unsorted")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	data := []DataRow{
+		{4,0,0,0},
+		{2,0,0,0},
+		{3,0,0,0},
+		{6,0,0,0},
+		{1,0,0,0},
+		{5,0,0,0},
+	}
+
+	// Serialize
+	serializedJob, err := json.Marshal(Dataset{2,7,3,data})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Store job in queue
+	_, err = beanstalkConn.Put(serializedJob, 0, 0, 120)
+	if err != nil {
+		log.Fatal(err)
 	}
 }
